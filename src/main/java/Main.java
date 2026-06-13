@@ -1,15 +1,18 @@
 import java.util.Scanner;
 
 public class Main {
-    public static void main(String[] args) throws Exception {
-        // TODO: Uncomment the code below to pass the first stage
+    public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
-        while (sc.hasNextLine()) {
+        while (true) {
             System.out.print("$ ");
             System.out.flush();
 
             String input = sc.nextLine();
+
+            if (input.equals("exit")) {
+                break;
+            }
 
             if (input.isEmpty()) {
                 continue;
@@ -18,5 +21,6 @@ public class Main {
             System.out.println(input + ": command not found");
         }
 
+        sc.close();
     }
 }
