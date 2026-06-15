@@ -105,11 +105,10 @@ public class Main {
                 if (Files.exists(filePath) && Files.isExecutable(filePath)) {
                     found = true;
                     try {
-
-                        parts[0] = filePath.toString(); // chaging command ie parts[0] to file path as initial parts[0] = custom_exe, then filePath = /usr/local/bin/custom_exe so parts[0] = /usr/local/bin/custom_exe
-
                         // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
                         ProcessBuilder pb = new ProcessBuilder(parts);
+                        pb.command().set(0, filePath.toString()); // change command ie. parts[0] to file path as initial parts[0] = custom_exe, then filePath = /usr/local/bin/custom_exe so parts[0] = /usr/local/bin/custom_exe
+
                         pb.inheritIO(); // inherit the stdio of the parent process ie. This tells the new program: Use the same terminal as my shell. - let the worker speak directly to the terminal 
                         Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
                         process.waitFor(); // wait for the process to complete - wait until worker returns 
