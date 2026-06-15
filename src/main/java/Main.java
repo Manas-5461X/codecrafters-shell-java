@@ -56,7 +56,7 @@ public class Main {
             if (input.startsWith("type ")) {
                 String target = input.substring(5);
                 // check shell buildins first
-                if (target.equals("echo") || target.equals("exit") || target.equals("type")) {
+                if (target.equals("echo") || target.equals("exit") || target.equals("type") || target.equals("pwd")) {
                     System.out.println(target + " is a shell builtin");
                     continue;
                 }
