@@ -1,4 +1,4 @@
-import java.util.Scanner;
+import java.util.*;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,9 +70,7 @@ public class Main {
                         Path filePath = Paths.get(dir, target);
                         // Check if file exists and is executable
                         if (Files.exists(filePath) && Files.isExecutable(filePath)) {
-
                             System.out.println(target + " is " + filePath);
-
                             found = true;
                             break;
                         }
@@ -87,7 +85,46 @@ public class Main {
 
             }
 
-            System.out.println(input + ": command not found");
+            /*
+             * External command execution
+             * Example: input = "myprogram alice bob" --> command = "myprogram"
+             * Search PATH for executable. If found: run executable with arguments. Else:
+             * command not found.
+             */
+
+            String[] parts = input.split(" ");
+            String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
+
+            String pathEnv = System.getenv("PATH");
+            String[] directories = pathEnv.split(File.pathSeparator);
+
+            boolean found = false;
+
+            for (String dir : directories) {
+                Path filePath = Paths.get(dir, command);
+                if (Files.exists(filePath) && Files.isExecutable(filePath)) {
+                    found = true;
+                    try {
+
+                        parts[0] = filePath.toString(); // chaging command ie parts[0] to file path as initial parts[0] = custom_exe, then filePath = /usr/local/bin/custom_exe so parts[0] = /usr/local/bin/custom_exe
+
+                        // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
+                        ProcessBuilder pb = new ProcessBuilder(parts);
+                        pb.inheritIO(); // inherit the stdio of the parent process ie. This tells the new program: Use the same terminal as my shell. - let the worker speak directly to the terminal 
+                        Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
+                        process.waitFor(); // wait for the process to complete - wait until worker returns 
+                        
+                    } catch (Exception e) {
+                        e.printStackTrace(); // print full details of the error in the console 
+                    }
+
+                    break;
+                }
+            }
+
+            if (!found) {
+                System.out.println(input + ": command not found");
+            }
         }
 
         sc.close();
