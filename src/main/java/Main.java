@@ -31,6 +31,12 @@ public class Main {
                 System.out.println(input.substring(5));
                 continue;
             }
+        
+            // we cant use path here as path means where can i find executables and this tells about directory where we are currently present
+            if (input.equals("pwd")) {
+                System.out.println(System.getProperty("user.dir"));
+                continue;
+            }
 
             /*
              * Don't use startsWith() + endsWith() for type command checks.
