@@ -24,14 +24,21 @@ public class Main {
                 continue;
             }
 
+            /*  String[] parts = input.split(" ");
+             String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
+             changed this to below code as below code would not handle it correctly because it splits only on spaces and if there are quotes in the input string then it would not handle it correctly
+            */
+            List<String> parts = parseCommand(input);
+            String command = parts.get(0);
+
             /*
              * if we use contains then if other command has echo then this will also execute
              * which is incorrect
              */
 
-            if (input.startsWith("echo ")) {
-                List<String> args = parseCommand(input.substring(5));
-                System.out.println(String.join(" ", args));
+            if (command.equals("echo")) {
+                // System.out.println(input.substring(5)); -- as this  gave error for handing single and double quotes so i have to change that 
+                 System.out.println(String.join(" ", parts.subList(1, parts.size())));
                 continue;
             }
         
@@ -126,12 +133,7 @@ public class Main {
              * command not found.
              */
 
-            /*  String[] parts = input.split(" ");
-             String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
-             changed this to below code as below code would not handle it correctly because it splits only on spaces and if there are quotes in the input string then it would not handle it correctly
-            */
-            List<String> parts = parseCommand(input);
-            String command = parts.get(0);
+            
 
             String pathEnv = System.getenv("PATH");
             String[] directories = pathEnv.split(File.pathSeparator);
