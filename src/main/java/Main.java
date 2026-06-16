@@ -30,7 +30,8 @@ public class Main {
              */
 
             if (input.startsWith("echo ")) {
-                System.out.println(input.substring(5));
+                List<String> args = parseCommand(input.substring(5));
+                System.out.println(String.join(" ", args));
                 continue;
             }
         
