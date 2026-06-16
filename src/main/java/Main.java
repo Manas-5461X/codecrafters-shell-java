@@ -8,6 +8,8 @@ public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
+        Path currentDirectory = Paths.get(System.getProperty("user.dir")); // as normally changing pwd will not work directly so we need a variable for that 
+
         while (true) {
             System.out.print("$ ");
             System.out.flush();
@@ -34,7 +36,19 @@ public class Main {
         
             // we cant use path here as path means where can i find executables and this tells about directory where we are currently present
             if (input.equals("pwd")) {
-                System.out.println(System.getProperty("user.dir"));
+                System.out.println(currentDirectory);
+                continue;
+            }
+            // change the current directory (getting output of pwd) to where we want to go in new directory 
+            if(input.startsWith("cd ")) {
+                String targetDirectory = input.substring(3);
+                Path newPath = Paths.get(targetDirectory);
+
+                if(Files.exists(newPath) && Files.isDirectory(newPath)) {
+                    currentDirectory = newPath;
+                }else {
+                    System.out.println("cd: " + targetDirectory + ": No such file or directory");
+                }
                 continue;
             }
 
@@ -56,7 +70,7 @@ public class Main {
             if (input.startsWith("type ")) {
                 String target = input.substring(5);
                 // check shell buildins first
-                if (target.equals("echo") || target.equals("exit") || target.equals("type") || target.equals("pwd")) {
+                if (target.equals("echo") || target.equals("exit") || target.equals("type") || target.equals("pwd") || target.equals("cd")) {
                     System.out.println(target + " is a shell builtin");
                     continue;
                 }
