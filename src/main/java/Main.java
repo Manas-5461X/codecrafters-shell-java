@@ -42,6 +42,12 @@ public class Main {
             //[Absolute Path] change the current directory (getting output of pwd) to where we want to go in new directory 
             if(input.startsWith("cd ")) {
                 String targetDirectory = input.substring(3);
+
+                // to check ~ should be home directory 
+                if(targetDirectory.equals("~")) {
+                    targetDirectory = System.getenv("HOME");
+                }
+
                 Path newPath;
                 // for Relative Path we use currentDirectory and resolve() to append target to it
                 if (targetDirectory.startsWith("/")) {
