@@ -125,8 +125,12 @@ public class Main {
              * command not found.
              */
 
-            String[] parts = input.split(" ");
-            String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
+            /*  String[] parts = input.split(" ");
+             String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
+             changed this to below code as below code would not handle it correctly because it splits only on spaces and if there are quotes in the input string then it would not handle it correctly
+            */
+            List<String> parts = parseCommand(input);
+            String command = parts.get(0);
 
             String pathEnv = System.getenv("PATH");
             String[] directories = pathEnv.split(File.pathSeparator);
@@ -159,5 +163,46 @@ public class Main {
         }
 
         sc.close();
+    }
+
+    // This is to handle single and double quotes in input string
+    private static List<String> parseCommand(String input) {
+
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+
+        for (char ch : input.toCharArray()) {
+
+            if (ch == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+                continue;
+            }
+
+            if (ch == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+                continue;
+            }
+
+            if (ch == ' ' && !inSingleQuote && !inDoubleQuote) {
+
+                if (current.length() > 0) {
+                    parts.add(current.toString());
+                    current.setLength(0);
+                }
+
+                continue;
+            }
+
+            current.append(ch);
+        }
+
+        if (current.length() > 0) {
+            parts.add(current.toString());
+        }
+
+        return parts;
     }
 }
