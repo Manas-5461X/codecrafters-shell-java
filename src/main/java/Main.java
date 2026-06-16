@@ -39,14 +39,21 @@ public class Main {
                 System.out.println(currentDirectory);
                 continue;
             }
-            // change the current directory (getting output of pwd) to where we want to go in new directory 
+            //[Absolute Path] change the current directory (getting output of pwd) to where we want to go in new directory 
             if(input.startsWith("cd ")) {
                 String targetDirectory = input.substring(3);
-                Path newPath = Paths.get(targetDirectory);
+                Path newPath;
+                // for Relative Path we use currentDirectory and resolve() to append target to it
+                if (targetDirectory.startsWith("/")) {
+                    newPath = Paths.get(targetDirectory); // absolute path (starting from the root of the file system)
+                }else{
+                    newPath = currentDirectory.resolve(targetDirectory); // relative path (starting from the current directory)
+                }
 
+                newPath = newPath.normalize(); // cleans up the path by removing unnecessary parts like . or .. 
                 if(Files.exists(newPath) && Files.isDirectory(newPath)) {
                     currentDirectory = newPath;
-                }else {
+                }else{
                     System.out.println("cd: " + targetDirectory + ": No such file or directory");
                 }
                 continue;
