@@ -12,7 +12,7 @@ public class Main {
 
         while (true) {
             System.out.print("$ ");
-            System.out.flush();
+            System.out.flush(); // show whatever i have print right now 
 
             String input = sc.nextLine();
 
@@ -26,7 +26,7 @@ public class Main {
 
             /*  String[] parts = input.split(" ");
              String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
-             changed this to below code as below code would not handle it correctly because it splits only on spaces and if there are quotes in the input string then it would not handle it correctly
+             changed this to below code as above code would not handle it correctly because it splits only on spaces and if there are quotes in the input string then it would not handle it correctly
             */
             List<String> parts = parseCommand(input);
             String command = parts.get(0);
@@ -177,20 +177,57 @@ public class Main {
         boolean inSingleQuote = false;
         boolean inDoubleQuote = false;
 
-        for (char ch : input.toCharArray()) {
+        for (int i = 0; i < input.length(); i++) {
+            char ch = input.charAt(i);
 
+            // Handle backslashes
+            if (ch == '\\') {
+                // Inside single quotes: backslash is literal
+                if (inSingleQuote) {
+                    current.append('\\');
+                    continue;
+                }
+
+                // Inside double quotes
+                if (inDoubleQuote) {
+                    if (i + 1 < input.length()) {
+                        char next = input.charAt(i + 1);
+                        // Only \" and \\ are special
+                        if (next == '"' || next == '\\') {
+                            current.append(next);
+                            i++;
+                        } else {
+                            current.append('\\');
+                        }
+                    }
+
+                    continue;
+                }
+
+                // Outside quotes
+                if (i + 1 < input.length()) {
+                    current.append(input.charAt(i + 1));
+                    i++;
+                }
+
+                continue;
+            }
+
+
+            // Handle single quotes
             if (ch == '\'' && !inDoubleQuote) {
                 inSingleQuote = !inSingleQuote;
                 continue;
             }
 
+            // Handle double quotes
             if (ch == '"' && !inSingleQuote) {
                 inDoubleQuote = !inDoubleQuote;
                 continue;
             }
-
+             
+            // Handle spaces (only when NOT inside quotes)
             if (ch == ' ' && !inSingleQuote && !inDoubleQuote) {
-
                 if (current.length() > 0) {
                     parts.add(current.toString());
                     current.setLength(0);
@@ -198,10 +235,10 @@ public class Main {
 
                 continue;
             }
-
-            current.append(ch);
+            // Add normal characters
+                current.append(ch);
         }
-
+        // Add last token
         if (current.length() > 0) {
             parts.add(current.toString());
         }
