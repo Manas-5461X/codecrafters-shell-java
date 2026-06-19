@@ -28,8 +28,22 @@ public class Main {
              String command = parts[0]; // get thefirst word/token in input string , cmd like cat hi -> command = cat
              changed this to below code as above code would not handle it correctly because it splits only on spaces and if there are quotes in the input string then it would not handle it correctly
             */
+           
             List<String> parts = parseCommand(input);
             String command = parts.get(0);
+
+            String stdoutFile = null;
+
+            for (int i = 0; i < parts.size(); i++) {
+
+              if (parts.get(i).equals(">") || parts.get(i).equals("1>")) {
+                stdoutFile = parts.get(i + 1);
+                parts = new ArrayList<>(parts.subList(0, i));
+                break;
+              }
+            }
+
+            command = parts.get(0);
 
             /*
              * if we use contains then if other command has echo then this will also execute
@@ -37,8 +51,17 @@ public class Main {
              */
 
             if (command.equals("echo")) {
-                // System.out.println(input.substring(5)); -- as this  gave error for handing single and double quotes so i have to change that 
-                 System.out.println(String.join(" ", parts.subList(1, parts.size())));
+                String output = String.join(" ", parts.subList(1, parts.size()));
+                try {
+                    if (stdoutFile != null) {
+                        Files.writeString(Paths.get(stdoutFile),output + System.lineSeparator());
+                    } else {    
+                        System.out.println(output);
+                    }
+                } catch (Exception e) {   // as file can also have some error
+                    e.printStackTrace();
+                }
+
                 continue;
             }
         
@@ -148,10 +171,14 @@ public class Main {
                         // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
                         ProcessBuilder pb = new ProcessBuilder(parts);
 
-                        pb.inheritIO(); // inherit the stdio of the parent process ie. This tells the new program: Use the same terminal as my shell. - let the worker speak directly to the terminal 
+                        if (stdoutFile != null) {
+                            pb.redirectOutput(new File(stdoutFile));
+                        } else {
+                            pb.inheritIO(); // inherit the stdio of the parent process ie. This tells the new program: Use the same terminal as my shell. - let the worker speak directly to the terminal
+                        }
                         Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
-                        process.waitFor(); // wait for the process to complete - wait until worker returns 
-                        
+                        process.waitFor(); // wait for the process to complete - wait until worker returns
+
                     } catch (Exception e) {
                         e.printStackTrace(); // print full details of the error in the console 
                     }
@@ -196,7 +223,7 @@ public class Main {
                         if (next == '"' || next == '\\') {
                             current.append(next);
                             i++;
-                        } else {
+                        }else{
                             current.append('\\');
                         }
                     }
@@ -232,7 +259,7 @@ public class Main {
                     parts.add(current.toString());
                     current.setLength(0);
                 }
-
+                 
                 continue;
             }
             // Add normal characters
