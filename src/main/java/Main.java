@@ -181,17 +181,23 @@ public class Main {
                 if (Files.exists(filePath) && Files.isExecutable(filePath)) {
                     found = true;
                     try {
-                        // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
-                        ProcessBuilder pb = new ProcessBuilder(parts);
+                      // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
+                      ProcessBuilder pb = new ProcessBuilder(parts);
 
-                        if (stdoutFile != null) {
-                            pb.redirectOutput(new File(stdoutFile)); // stdout -> file
-                            pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
-                        } else {
-                            pb.inheritIO(); // inherit the stdio of the parent process ie. This tells the new program: Use the same terminal as my shell. - let the worker speak directly to the terminal
-                        }
-                        Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
-                        process.waitFor(); // wait for the process to complete - wait until worker returns
+                      if (stdoutFile != null) {
+                          pb.redirectOutput(new File(stdoutFile)); // stdout -> file
+                      } else {
+                          pb.redirectOutput(ProcessBuilder.Redirect.INHERIT); // stdout -> terminal
+                      }
+
+                      if (stderrFile != null) {
+                          pb.redirectError(new File(stderrFile)); // stderr -> file
+                      } else {
+                          pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
+                      }
+
+                      Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
+                      process.waitFor(); // wait for the process to complete - wait until worker returns  
 
                     } catch (Exception e) {
                         e.printStackTrace(); // print full details of the error in the console 
