@@ -33,15 +33,28 @@ public class Main {
             String command = parts.get(0);
 
             String stdoutFile = null;
+            String stderrFile = null;
 
             for (int i = 0; i < parts.size(); i++) {
+                String token = parts.get(i);
 
-              if (parts.get(i).equals(">") || parts.get(i).equals("1>")) {
-                stdoutFile = parts.get(i + 1);
-                parts = new ArrayList<>(parts.subList(0, i));
-                break;
-              }
+                if (token.equals(">") || token.equals("1>")) {
+                    stdoutFile = parts.get(i + 1);
+                    parts = new ArrayList<>(parts.subList(0, i));
+                    break;
+                }
+
+                if (token.equals("2>")) {
+                    stderrFile = parts.get(i + 1);
+                    parts = new ArrayList<>(parts.subList(0, i));
+                    break;
+                }
             }
+
+            if (parts.isEmpty()) { // if we only have redirections and no command
+                continue;
+            }
+
 
             command = parts.get(0);
 
