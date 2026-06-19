@@ -172,7 +172,8 @@ public class Main {
                         ProcessBuilder pb = new ProcessBuilder(parts);
 
                         if (stdoutFile != null) {
-                            pb.redirectOutput(new File(stdoutFile));
+                            pb.redirectOutput(new File(stdoutFile)); // stdout -> file
+                            pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
                         } else {
                             pb.inheritIO(); // inherit the stdio of the parent process ie. This tells the new program: Use the same terminal as my shell. - let the worker speak directly to the terminal
                         }
