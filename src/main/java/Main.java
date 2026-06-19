@@ -80,65 +80,23 @@ public class Main {
              */
 
             if (command.equals("echo")) {
-                String output = String.join(" ", parts.subList(1, parts.size()));
-
-                try {
-                    if (stdoutFile != null) {
-                        if (appendStdout) {
-                            Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator(),
-                            java.nio.file.StandardOpenOption.CREATE,
-                            java.nio.file.StandardOpenOption.APPEND);
-                        } else {
-                            Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator());
-                        }
-                    } else {
-                        System.out.println(output);
-                    }
-
-                    if (stderrFile != null) {
-                        if (appendStderr) {
-                            Files.writeString(Paths.get(stderrFile), "",
-                            java.nio.file.StandardOpenOption.CREATE,
-                            java.nio.file.StandardOpenOption.APPEND);
-                        } else {
-                            Files.writeString(Paths.get(stderrFile), "");
-}
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
+                handleEchoCommand(parts, stdoutFile, appendStdout, stderrFile, appendStderr);
                 continue;
             }
         
             // we cant use path here as path means where can i find executables and this tells about directory where we are currently present
-            if (input.equals("pwd")) {
+            if (command.equals("pwd")) {
                 System.out.println(currentDirectory);
                 continue;
             }
+
+            if (command.equals("jobs")) {
+                continue;
+            }
+
             //[Absolute Path] change the current directory (getting output of pwd) to where we want to go in new directory 
-            if(input.startsWith("cd ")) {
-                String targetDirectory = input.substring(3);
-
-                // to check ~ should be home directory 
-                if(targetDirectory.equals("~")) {
-                    targetDirectory = System.getenv("HOME");
-                }
-
-                Path newPath;
-                // for Relative Path we use currentDirectory and resolve() to append target to it
-                if (targetDirectory.startsWith("/")) {
-                    newPath = Paths.get(targetDirectory); // absolute path (starting from the root of the file system)
-                }else{
-                    newPath = currentDirectory.resolve(targetDirectory); // relative path (starting from the current directory)
-                }
-
-                newPath = newPath.normalize(); // cleans up the path by removing unnecessary parts like . or .. 
-                if(Files.exists(newPath) && Files.isDirectory(newPath)) {
-                    currentDirectory = newPath;
-                }else{
-                    System.out.println("cd: " + targetDirectory + ": No such file or directory");
-                }
+            if(command.equals("cd")) {
+                currentDirectory = handleCdCommand(input, currentDirectory);
                 continue;
             }
 
@@ -157,42 +115,9 @@ public class Main {
              * - Not found? -> print "<cmd>: not found".
              */
 
-            if (input.startsWith("type ")) {
-                String target = input.substring(5);
-                // check shell buildins first
-                if (target.equals("echo") || target.equals("exit") || target.equals("type") || target.equals("pwd") || target.equals("cd")) {
-                    System.out.println(target + " is a shell builtin");
-                    continue;
-                }
-
-                // Get PATH variable
-                String pathEnv = System.getenv("PATH");
-
-                if (pathEnv != null) {
-                    // PATH looks like: /usr/bin:/usr/local/bin:/some/other/folder
-                    String[] directories = pathEnv.split(File.pathSeparator);
-
-                    boolean found = false;
-
-                    // Search every directory in PATH
-                    for (String dir : directories) {
-                        // Build full path dir = "/usr/bin" , target = "ls" then result = "/usr/bin/ls"
-                        Path filePath = Paths.get(dir, target);
-                        // Check if file exists and is executable
-                        if (Files.exists(filePath) && Files.isExecutable(filePath)) {
-                            System.out.println(target + " is " + filePath);
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    // If not found anywhere
-                    if (!found) {
-                        System.out.println(target + ": not found");
-                    }
-                }
+            if (command.equals("type")) {
+                handleTypeCommand(input);
                 continue;
-
             }
 
             /*
@@ -202,58 +127,136 @@ public class Main {
              * command not found.
              */
 
-            
-
-            String pathEnv = System.getenv("PATH");
-            String[] directories = pathEnv.split(File.pathSeparator);
-
-            boolean found = false;
-
-            for (String dir : directories) {
-                Path filePath = Paths.get(dir, command);
-                if (Files.exists(filePath) && Files.isExecutable(filePath)) {
-                    found = true;
-                    try {
-                      // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
-                      ProcessBuilder pb = new ProcessBuilder(parts);
-
-                      if (stdoutFile != null) {
-                         if (appendStdout) {
-                             pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(stdoutFile)));
-                         } else {
-                             pb.redirectOutput(new File(stdoutFile)); // stdout -> file
-                         }
-                      } else {
-                             pb.redirectOutput(ProcessBuilder.Redirect.INHERIT); // stdout -> terminal
-                      } 
-
-                      if (stderrFile != null) {
-                         if (appendStderr) {
-                            pb.redirectError(ProcessBuilder.Redirect.appendTo(new File(stderrFile)));
-                        } else {
-                            pb.redirectError(new File(stderrFile)); // stderr -> file
-                        }
-                      } else {
-                          pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
-                      }
-
-                      Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
-                      process.waitFor(); // wait for the process to complete - wait until worker returns  
-
-                    } catch (Exception e) {
-                        e.printStackTrace(); // print full details of the error in the console 
-                    }
-
-                    break;
-                }
-            }
-
-            if (!found) {
-                System.out.println(input + ": command not found");
-            }
+            executeExternalCommand(command, input, parts, stdoutFile, appendStdout, stderrFile, appendStderr);
         }
 
         sc.close();
+    }
+    private static void handleEchoCommand(List<String> parts, String stdoutFile, boolean appendStdout, String stderrFile, boolean appendStderr) {
+        String output = String.join(" ", parts.subList(1, parts.size()));
+
+        try {
+            if (stdoutFile != null) {
+                if (appendStdout) {
+                    Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator(),
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+                } else {
+                    Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator());
+                }
+            } else {
+                System.out.println(output);
+            }
+
+            if (stderrFile != null) {
+                if (appendStderr) {
+                    Files.writeString(Paths.get(stderrFile), "",
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+                } else {
+                    Files.writeString(Paths.get(stderrFile), "");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Path handleCdCommand(String input, Path currentDirectory) {
+        String targetDirectory = input.substring(3);
+
+        // to check ~ should be home directory 
+        if(targetDirectory.equals("~")) {
+            targetDirectory = System.getenv("HOME");
+        }
+
+        Path newPath;
+        // for Relative Path we use currentDirectory and resolve() to append target to it
+        if (targetDirectory.startsWith("/")) {
+            newPath = Paths.get(targetDirectory); // absolute path (starting from the root of the file system)
+        }else{
+            newPath = currentDirectory.resolve(targetDirectory); // relative path (starting from the current directory)
+        }
+
+        newPath = newPath.normalize(); // cleans up the path by removing unnecessary parts like . or .. 
+        if(Files.exists(newPath) && Files.isDirectory(newPath)) {
+            return newPath;
+        }else{
+            System.out.println("cd: " + targetDirectory + ": No such file or directory");
+            return currentDirectory;
+        }
+    }
+
+    private static void handleTypeCommand(String input) {
+        String target = input.substring(5);
+        // check shell buildins first
+        if (isBuiltin(target)) {
+            System.out.println(target + " is a shell builtin");
+            return;
+        }
+
+        Path executable = findExecutable(target);
+        if (executable != null) {
+            System.out.println(target + " is " + executable);
+        } else {
+            System.out.println(target + ": not found");
+        }
+    }
+
+    private static void executeExternalCommand(String command, String input, List<String> parts, String stdoutFile, boolean appendStdout, String stderrFile, boolean appendStderr) {
+        Path executable = findExecutable(command);
+        if (executable != null) {
+            try {
+                // ProcessBuilder accept list of string , as its first argument as Think of it as: Prepare to run: /usr/local/bin/custom_exe alice bob and Nothing is executed yet.
+                ProcessBuilder pb = new ProcessBuilder(parts);
+
+                if (stdoutFile != null) {
+                    if (appendStdout) {
+                        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(stdoutFile)));
+                    } else {
+                        pb.redirectOutput(new File(stdoutFile)); // stdout -> file
+                    }
+                } else {
+                    pb.redirectOutput(ProcessBuilder.Redirect.INHERIT); // stdout -> terminal
+                } 
+
+                if (stderrFile != null) {
+                    if (appendStderr) {
+                        pb.redirectError(ProcessBuilder.Redirect.appendTo(new File(stderrFile)));
+                    } else {
+                        pb.redirectError(new File(stderrFile)); // stderr -> file
+                    }
+                } else {
+                    pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
+                }
+
+                Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
+                process.waitFor(); // wait for the process to complete - wait until worker returns  
+
+            } catch (Exception e) {
+                e.printStackTrace(); // print full details of the error in the console 
+            }
+        } else {
+            System.out.println(input + ": command not found");
+        }
+    }
+
+    private static boolean isBuiltin(String command) {
+        return command.equals("echo") || command.equals("exit") || command.equals("type") || command.equals("pwd") || command.equals("cd") || command.equals("jobs");
+    }
+
+    private static Path findExecutable(String command) {
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null) {
+            String[] directories = pathEnv.split(File.pathSeparator);
+            for (String dir : directories) {
+                Path filePath = Paths.get(dir, command);
+                if (Files.exists(filePath) && Files.isExecutable(filePath)) {
+                    return filePath;
+                }
+            }
+        }
+        return null;
     }
 
     // This is to handle single and double quotes in input string
