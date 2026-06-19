@@ -34,6 +34,8 @@ public class Main {
 
             String stdoutFile = null;
             String stderrFile = null;
+            boolean appendStdout = false;
+            boolean appendStderr = false;
 
             for (int i = 0; i < parts.size(); i++) {
                 String token = parts.get(i);
@@ -44,8 +46,22 @@ public class Main {
                     break;
                 }
 
+                if (token.equals(">>") || token.equals("1>>")) {
+                    stdoutFile = parts.get(i + 1);
+                    appendStdout = true;
+                    parts = new ArrayList<>(parts.subList(0, i));
+                    break;
+                }
+
                 if (token.equals("2>")) {
                     stderrFile = parts.get(i + 1);
+                    parts = new ArrayList<>(parts.subList(0, i));
+                    break;
+                }
+
+                if (token.equals("2>>")) {
+                    stderrFile = parts.get(i + 1);
+                    appendStderr = true;
                     parts = new ArrayList<>(parts.subList(0, i));
                     break;
                 }
@@ -68,13 +84,25 @@ public class Main {
 
                 try {
                     if (stdoutFile != null) {
-                        Files.writeString(Paths.get(stdoutFile),output + System.lineSeparator());
+                        if (appendStdout) {
+                            Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator(),
+                            java.nio.file.StandardOpenOption.CREATE,
+                            java.nio.file.StandardOpenOption.APPEND);
+                        } else {
+                            Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator());
+                        }
                     } else {
                         System.out.println(output);
                     }
 
                     if (stderrFile != null) {
-                        Files.writeString(Paths.get(stderrFile), "");
+                        if (appendStderr) {
+                            Files.writeString(Paths.get(stderrFile), "",
+                            java.nio.file.StandardOpenOption.CREATE,
+                            java.nio.file.StandardOpenOption.APPEND);
+                        } else {
+                            Files.writeString(Paths.get(stderrFile), "");
+}
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -190,13 +218,21 @@ public class Main {
                       ProcessBuilder pb = new ProcessBuilder(parts);
 
                       if (stdoutFile != null) {
-                          pb.redirectOutput(new File(stdoutFile)); // stdout -> file
+                         if (appendStdout) {
+                             pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(stdoutFile)));
+                         } else {
+                             pb.redirectOutput(new File(stdoutFile)); // stdout -> file
+                         }
                       } else {
-                          pb.redirectOutput(ProcessBuilder.Redirect.INHERIT); // stdout -> terminal
-                      }
+                             pb.redirectOutput(ProcessBuilder.Redirect.INHERIT); // stdout -> terminal
+                      } 
 
                       if (stderrFile != null) {
-                          pb.redirectError(new File(stderrFile)); // stderr -> file
+                         if (appendStderr) {
+                            pb.redirectError(ProcessBuilder.Redirect.appendTo(new File(stderrFile)));
+                        } else {
+                            pb.redirectError(new File(stderrFile)); // stderr -> file
+                        }
                       } else {
                           pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
                       }
