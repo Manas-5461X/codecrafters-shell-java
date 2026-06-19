@@ -65,13 +65,18 @@ public class Main {
 
             if (command.equals("echo")) {
                 String output = String.join(" ", parts.subList(1, parts.size()));
+
                 try {
                     if (stdoutFile != null) {
                         Files.writeString(Paths.get(stdoutFile),output + System.lineSeparator());
-                    } else {    
+                    } else {
                         System.out.println(output);
                     }
-                } catch (Exception e) {   // as file can also have some error
+
+                    if (stderrFile != null) {
+                        Files.writeString(Paths.get(stderrFile), "");
+                    }
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
 
