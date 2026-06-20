@@ -19,7 +19,7 @@ public class Main {
     }
  
     private static List<Job> jobs = new ArrayList<>();
-    private static int nextJobNumber = 1;
+  
 
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
@@ -27,6 +27,7 @@ public class Main {
         Path currentDirectory = Paths.get(System.getProperty("user.dir"));
 
         while (true) {
+            reapJobs();
             System.out.print("$ ");
             System.out.flush(); // show whatever i have print right now
 
@@ -204,6 +205,17 @@ public class Main {
         }
     }
 
+    private static int getNextJobNumber() {
+        if (jobs.isEmpty()){
+            return 1;
+        }
+        int max = 0;
+        for (Job job : jobs){
+            max = Math.max(max, job.jobNumber);
+        }
+        return max + 1;
+    }
+
     private static void executeExternalCommand(String command, String input, List<String> parts, String stdoutFile,
             boolean appendStdout, String stderrFile, boolean appendStderr , boolean backgroundJob) {
         Path executable = findExecutable(command);
@@ -237,9 +249,9 @@ public class Main {
                 Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
                 
                 if (backgroundJob) {
-                    System.out.println("[" + nextJobNumber + "] " + process.pid()); // Print job number and process id
-                    jobs.add(new Job(nextJobNumber, process, input)); // Add job to list
-                    nextJobNumber++; // Increment job number
+                    int jobNumber = getNextJobNumber();
+                    System.out.println("[" + jobNumber + "] " + process.pid());
+                    jobs.add(new Job(jobNumber, process, input)); // Add job to list
                 }else {
                     process.waitFor(); // wait for the process to complete - wait until worker returns
                 }
@@ -275,10 +287,8 @@ public class Main {
         return null;
     }
 
-    private static void handleJobsCommand() {
-
-        List<Job> completedJobs = new ArrayList<>();
-
+   private static void handleJobsCommand() {
+        reapJobs();
         for (int i = 0; i < jobs.size(); i++) {
             Job job = jobs.get(i);
             char marker = ' ';
@@ -287,15 +297,30 @@ public class Main {
             } else if (i == jobs.size() - 2) {
                 marker = '-';
             }
-            boolean running = job.process.isAlive();
-            String status = running ? "Running" : "Done";
-            String command = job.command;
+            System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, "Running", job.command);
+        }
+    }
 
-            if (!running && command.endsWith(" &")) {
-                command = command.substring(0, command.length() - 2);
-            }
-            System.out.printf( "[%d]%c  %-24s%s%n", job.jobNumber, marker, status,command);
-            if (!running) {
+    private static void reapJobs() {
+        List<Job> completedJobs = new ArrayList<>();
+
+        for (int i = 0; i < jobs.size(); i++) {
+            Job job = jobs.get(i);
+            if (!job.process.isAlive()) {
+                char marker = ' ';
+                if (i == jobs.size() - 1) {
+                    marker = '+';
+                } else if (i == jobs.size() - 2) {
+                    marker = '-';
+                }
+
+                String command = job.command;
+                if (command.endsWith(" &")) {
+                    command = command.substring(0, command.length() - 2);
+                }
+
+                System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, "Done", command);
+
                 completedJobs.add(job);
             }
         }
