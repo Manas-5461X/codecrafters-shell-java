@@ -276,17 +276,30 @@ public class Main {
     }
 
     private static void handleJobsCommand() {
+
+        List<Job> completedJobs = new ArrayList<>();
+
         for (int i = 0; i < jobs.size(); i++) {
-           Job job = jobs.get(i);
-           char marker = ' ';
-           if (i == jobs.size() - 1) {
+            Job job = jobs.get(i);
+            char marker = ' ';
+            if (i == jobs.size() - 1) {
                 marker = '+';
             } else if (i == jobs.size() - 2) {
                 marker = '-';
             }
-            String status = job.process.isAlive() ? "Running": "Done";
-            System.out.printf("[%d]%c  %-24s%s%n",job.jobNumber,marker,status,job.command);
+            boolean running = job.process.isAlive();
+            String status = running ? "Running" : "Done";
+            String command = job.command;
+
+            if (!running && command.endsWith(" &")) {
+                command = command.substring(0, command.length() - 2);
+            }
+            System.out.printf( "[%d]%c  %-24s%s%n", job.jobNumber, marker, status,command);
+            if (!running) {
+                completedJobs.add(job);
+            }
         }
+        jobs.removeAll(completedJobs);
     }
 
     // This is to handle single and double quotes in input string
