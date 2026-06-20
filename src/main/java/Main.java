@@ -5,6 +5,22 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class Main {
+
+    static class Job {
+    int jobNumber;
+    Process process;
+    String command;
+
+        Job(int jobNumber, Process process, String command) {
+            this.jobNumber = jobNumber;
+            this.process = process;
+            this.command = command;
+        }
+    }
+ 
+    private static List<Job> jobs = new ArrayList<>();
+    private static int nextJobNumber = 1;
+
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
 
@@ -100,6 +116,7 @@ public class Main {
                 System.out.println(currentDirectory);
                 break;
             case "jobs":
+                handleJobsCommand();
                 break;
             case "cd":
                 currentDirectory = handleCdCommand(input, currentDirectory);
@@ -220,7 +237,9 @@ public class Main {
                 Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
                 
                 if (backgroundJob) {
-                    System.out.println("[1] " + process.pid()); // Print job number and process id
+                    System.out.println("[" + nextJobNumber + "] " + process.pid()); // Print job number and process id
+                    jobs.add(new Job(nextJobNumber, process, input)); // Add job to list
+                    nextJobNumber++; // Increment job number
                 }else {
                     process.waitFor(); // wait for the process to complete - wait until worker returns
                 }
@@ -254,6 +273,20 @@ public class Main {
             }
         }
         return null;
+    }
+
+    private static void handleJobsCommand() {
+        for (int i = 0; i < jobs.size(); i++) {
+           Job job = jobs.get(i);
+           char marker = ' ';
+           if (i == jobs.size() - 1) {
+                marker = '+';
+            } else if (i == jobs.size() - 2) {
+                marker = '-';
+            }
+            String status = job.process.isAlive() ? "Running": "Done";
+            System.out.printf("[%d]%c  %-24s%s%n",job.jobNumber,marker,status,job.command);
+        }
     }
 
     // This is to handle single and double quotes in input string
