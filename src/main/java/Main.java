@@ -288,7 +288,7 @@ public class Main {
     }
 
    private static void handleJobsCommand() {
-        reapJobs();
+        List<Job> completedJobs = new ArrayList<>();
         for (int i = 0; i < jobs.size(); i++) {
             Job job = jobs.get(i);
             char marker = ' ';
@@ -297,13 +297,25 @@ public class Main {
             } else if (i == jobs.size() - 2) {
                 marker = '-';
             }
-            System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, "Running", job.command);
+
+            boolean running = job.process.isAlive();
+            String status = running ? "Running" : "Done";
+            String command = job.command;
+            if (!running && command.endsWith(" &")) {
+                command = command.substring(0, command.length() - 2);
+            }
+
+            System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, status, command);
+
+            if (!running) {
+                completedJobs.add(job);
+            }
         }
+        jobs.removeAll(completedJobs);
     }
 
     private static void reapJobs() {
         List<Job> completedJobs = new ArrayList<>();
-
         for (int i = 0; i < jobs.size(); i++) {
             Job job = jobs.get(i);
             if (!job.process.isAlive()) {
