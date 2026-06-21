@@ -212,7 +212,7 @@ public class Main {
 
     private static void handlePipeline(String input, Path currentDirectory) {
 
-        String[] commands = input.split("\\|", 2);
+        String[] commands = input.split("\\|");
         List<String> leftCommand = parseCommand(commands[0].trim());
         List<String> rightCommand = parseCommand(commands[1].trim());
 
@@ -240,17 +240,21 @@ public class Main {
                 return;
             }
 
-            // external | external
-            ProcessBuilder leftPb = new ProcessBuilder(leftCommand);
-            ProcessBuilder rightPb = new ProcessBuilder(rightCommand);
+            // external | external (supports multiple commands)
+            List<ProcessBuilder> builders = new ArrayList<>();
 
-            leftPb.redirectError(ProcessBuilder.Redirect.INHERIT);
-            rightPb.redirectError(ProcessBuilder.Redirect.INHERIT);
-            rightPb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+            for (String cmd : commands) {
+                List<String> parts = parseCommand(cmd.trim());
+                ProcessBuilder pb = new ProcessBuilder(parts);
+                pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                builders.add(pb);
+            }
 
-            List<Process> processes = ProcessBuilder.startPipeline(List.of(leftPb, rightPb));
-            processes.get(1).waitFor();
-            
+            builders.get(builders.size() - 1).redirectOutput(ProcessBuilder.Redirect.INHERIT);
+
+            List<Process> processes = ProcessBuilder.startPipeline(builders);
+            processes.get(processes.size() - 1).waitFor();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
