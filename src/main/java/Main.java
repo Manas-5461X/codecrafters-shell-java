@@ -210,44 +210,29 @@ public class Main {
         }
     }
 
-    private static void handlePipeline(String input) {
+   private static void handlePipeline(String input) {
 
         String[] commands = input.split("\\|", 2);
 
         List<String> leftCommand = parseCommand(commands[0].trim());
         List<String> rightCommand = parseCommand(commands[1].trim());
-
+    
         try {
             ProcessBuilder leftPb = new ProcessBuilder(leftCommand);
             ProcessBuilder rightPb = new ProcessBuilder(rightCommand);
 
             leftPb.redirectError(ProcessBuilder.Redirect.INHERIT);
             rightPb.redirectError(ProcessBuilder.Redirect.INHERIT);
+            rightPb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
 
-            Process leftProcess = leftPb.start();
-            Process rightProcess = rightPb.start();
+            List<Process> processes = ProcessBuilder.startPipeline(List.of(leftPb, rightPb));
+            processes.get(1).waitFor();
 
-            Thread pipeThread = new Thread(() -> {
-                try(var in = leftProcess.getInputStream(); var out = rightProcess.getOutputStream()) {
-                    in.transferTo(out);
-                    out.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
-
-            pipeThread.start();
-            rightProcess.getInputStream().transferTo(System.out);
-            pipeThread.join();
-
-            leftProcess.waitFor();
-            rightProcess.waitFor();
-
-        } catch (Exception e) {
+        }catch (Exception e) {
             e.printStackTrace();
         }
     }
-
+    
     private static int getNextJobNumber() {
         if (jobs.isEmpty()){
             return 1;
