@@ -42,7 +42,7 @@ public class Main {
             }
 
             if (input.contains("|")) {
-                handlePipeline(input);
+                handlePipeline(input, currentDirectory);
                 continue;
             }
 
@@ -210,14 +210,37 @@ public class Main {
         }
     }
 
-   private static void handlePipeline(String input) {
+    private static void handlePipeline(String input, Path currentDirectory) {
 
         String[] commands = input.split("\\|", 2);
-
         List<String> leftCommand = parseCommand(commands[0].trim());
         List<String> rightCommand = parseCommand(commands[1].trim());
-    
+
+        boolean leftBuiltin = isBuiltin(leftCommand.get(0));
+        boolean rightBuiltin = isBuiltin(rightCommand.get(0));
+
         try {
+            // builtin | external
+            if (leftBuiltin && !rightBuiltin) {
+                String output = executeBuiltinAndCapture(leftCommand, currentDirectory);
+                ProcessBuilder pb = new ProcessBuilder(rightCommand);
+
+                pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                Process process = pb.start();
+                process.getOutputStream().write(output.getBytes());
+                process.getOutputStream().close();
+                process.getInputStream().transferTo(System.out);
+                process.waitFor();
+                return;
+            }
+
+            // external | builtin
+            if (!leftBuiltin && rightBuiltin) {
+                System.out.print(executeBuiltinAndCapture(rightCommand, currentDirectory));
+                return;
+            }
+
+            // external | external
             ProcessBuilder leftPb = new ProcessBuilder(leftCommand);
             ProcessBuilder rightPb = new ProcessBuilder(rightCommand);
 
@@ -227,12 +250,12 @@ public class Main {
 
             List<Process> processes = ProcessBuilder.startPipeline(List.of(leftPb, rightPb));
             processes.get(1).waitFor();
-
-        }catch (Exception e) {
+            
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    
+
     private static int getNextJobNumber() {
         if (jobs.isEmpty()){
             return 1;
@@ -319,6 +342,36 @@ public class Main {
                 command.equals("cd") ||
                 command.equals("jobs");
     }
+
+    private static String executeBuiltinAndCapture(List<String> parts, Path currentDirectory) {
+
+        String command = parts.get(0);
+
+        switch (command) {
+            case "echo":
+                return String.join(" ", parts.subList(1, parts.size())) + System.lineSeparator();
+            case "pwd":
+                return currentDirectory.toString() + System.lineSeparator();
+            case "type":
+
+            String target = parts.get(1);
+
+            if (isBuiltin(target)) {
+                return target + " is a shell builtin" + System.lineSeparator();
+            }
+
+            Path executable = findExecutable(target);
+
+            if (executable != null) {
+                return target + " is " + executable + System.lineSeparator();
+            }
+
+            return target + ": not found" + System.lineSeparator();
+
+        default:
+            return "";
+    }
+}
 
     private static Path findExecutable(String command) {
         String pathEnv = System.getenv("PATH");
