@@ -7,9 +7,9 @@ import java.nio.file.Paths;
 public class Main {
 
     static class Job {
-    int jobNumber;
-    Process process;
-    String command;
+        int jobNumber;
+        Process process;
+        String command;
 
         Job(int jobNumber, Process process, String command) {
             this.jobNumber = jobNumber;
@@ -17,9 +17,15 @@ public class Main {
             this.command = command;
         }
     }
- 
+
+    static class Redirection {
+        String stdoutFile;
+        String stderrFile;
+        boolean appendStdout;
+        boolean appendStderr;
+    }
+
     private static List<Job> jobs = new ArrayList<>();
-  
 
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
@@ -56,67 +62,72 @@ public class Main {
              */
 
             List<String> parts = parseCommand(input);
-            String command = parts.get(0);
-
-            String stdoutFile = null;
-            String stderrFile = null;
-            boolean appendStdout = false;
-            boolean appendStderr = false;
-
-            for (int i = 0; i < parts.size(); i++) {
-                String token = parts.get(i);
-
-                if (token.equals(">") || token.equals("1>")) {
-                    stdoutFile = parts.get(i + 1);
-                    parts = new ArrayList<>(parts.subList(0, i));
-                    break;
-                }
-
-                if (token.equals(">>") || token.equals("1>>")) {
-                    stdoutFile = parts.get(i + 1);
-                    appendStdout = true;
-                    parts = new ArrayList<>(parts.subList(0, i));
-                    break;
-                }
-
-                if (token.equals("2>")) {
-                    stderrFile = parts.get(i + 1);
-                    parts = new ArrayList<>(parts.subList(0, i));
-                    break;
-                }
-
-                if (token.equals("2>>")) {
-                    stderrFile = parts.get(i + 1);
-                    appendStderr = true;
-                    parts = new ArrayList<>(parts.subList(0, i));
-                    break;
-                }
+            if (parts.isEmpty()) {
+                continue;
             }
+
+            Redirection redir = parseRedirections(parts);
 
             if (parts.isEmpty()) { // if we only have redirections and no command
                 continue;
             }
 
-            command = parts.get(0);
+            String command = parts.get(0);
+            boolean backgroundJob = isBackgroundJob(parts);
 
-            boolean backgroundJob = false;
-
-            if (!parts.isEmpty() && parts.get(parts.size() - 1).equals("&")) {
-                backgroundJob = true;
-                parts.remove(parts.size() - 1);
-            }
-
-            currentDirectory = handleCommand(command, input, parts, stdoutFile, appendStdout, stderrFile, appendStderr, backgroundJob, currentDirectory);
+            currentDirectory = handleCommand(command, input, parts, redir, backgroundJob, currentDirectory);
         }
 
         sc.close();
     }
 
-    private static Path handleCommand(String command, String input, List<String> parts, String stdoutFile,
-            boolean appendStdout, String stderrFile, boolean appendStderr, boolean backgroundJob, Path currentDirectory) {
+    private static Redirection parseRedirections(List<String> parts) {
+        Redirection redir = new Redirection();
+        for (int i = 0; i < parts.size(); i++) {
+            String token = parts.get(i);
+
+            if (token.equals(">") || token.equals("1>")) {
+                redir.stdoutFile = parts.get(i + 1);
+                parts.subList(i, parts.size()).clear();
+                break;
+            }
+
+            if (token.equals(">>") || token.equals("1>>")) {
+                redir.stdoutFile = parts.get(i + 1);
+                redir.appendStdout = true;
+                parts.subList(i, parts.size()).clear();
+                break;
+            }
+
+            if (token.equals("2>")) {
+                redir.stderrFile = parts.get(i + 1);
+                parts.subList(i, parts.size()).clear();
+                break;
+            }
+
+            if (token.equals("2>>")) {
+                redir.stderrFile = parts.get(i + 1);
+                redir.appendStderr = true;
+                parts.subList(i, parts.size()).clear();
+                break;
+            }
+        }
+        return redir;
+    }
+
+    private static boolean isBackgroundJob(List<String> parts) {
+        if (!parts.isEmpty() && parts.get(parts.size() - 1).equals("&")) {
+            parts.remove(parts.size() - 1);
+            return true;
+        }
+        return false;
+    }
+
+    private static Path handleCommand(String command, String input, List<String> parts, Redirection redir,
+            boolean backgroundJob, Path currentDirectory) {
         switch (command) {
             case "echo":
-                handleEchoCommand(parts, stdoutFile, appendStdout, stderrFile, appendStderr);
+                handleEchoCommand(parts, redir);
                 break;
             case "pwd":
                 System.out.println(currentDirectory);
@@ -131,36 +142,35 @@ public class Main {
                 handleTypeCommand(input);
                 break;
             default:
-                executeExternalCommand(command, input, parts, stdoutFile, appendStdout, stderrFile, appendStderr, backgroundJob);
+                executeExternalCommand(command, input, parts, redir, backgroundJob);
                 break;
         }
         return currentDirectory;
     }
 
-    private static void handleEchoCommand(List<String> parts, String stdoutFile, boolean appendStdout,
-            String stderrFile, boolean appendStderr) {
+    private static void handleEchoCommand(List<String> parts, Redirection redir) {
         String output = String.join(" ", parts.subList(1, parts.size()));
 
         try {
-            if (stdoutFile != null) {
-                if (appendStdout) {
-                    Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator(),
+            if (redir.stdoutFile != null) {
+                if (redir.appendStdout) {
+                    Files.writeString(Paths.get(redir.stdoutFile), output + System.lineSeparator(),
                             java.nio.file.StandardOpenOption.CREATE,
                             java.nio.file.StandardOpenOption.APPEND);
                 } else {
-                    Files.writeString(Paths.get(stdoutFile), output + System.lineSeparator());
+                    Files.writeString(Paths.get(redir.stdoutFile), output + System.lineSeparator());
                 }
             } else {
                 System.out.println(output);
             }
 
-            if (stderrFile != null) {
-                if (appendStderr) {
-                    Files.writeString(Paths.get(stderrFile), "",
+            if (redir.stderrFile != null) {
+                if (redir.appendStderr) {
+                    Files.writeString(Paths.get(redir.stderrFile), "",
                             java.nio.file.StandardOpenOption.CREATE,
                             java.nio.file.StandardOpenOption.APPEND);
                 } else {
-                    Files.writeString(Paths.get(stderrFile), "");
+                    Files.writeString(Paths.get(redir.stderrFile), "");
                 }
             }
         } catch (Exception e) {
@@ -261,11 +271,11 @@ public class Main {
     }
 
     private static int getNextJobNumber() {
-        if (jobs.isEmpty()){
+        if (jobs.isEmpty()) {
             return 1;
         }
         int max = 0;
-        for (Job job : jobs){
+        for (Job job : jobs) {
             max = Math.max(max, job.jobNumber);
         }
         return max + 1;
@@ -283,15 +293,14 @@ public class Main {
     }
 
     private static String removeBackgroundSymbol(String command) {
-
         if (command.endsWith(" &")) {
             return command.substring(0, command.length() - 2);
         }
         return command;
     }
 
-    private static void executeExternalCommand(String command, String input, List<String> parts, String stdoutFile,
-            boolean appendStdout, String stderrFile, boolean appendStderr , boolean backgroundJob) {
+    private static void executeExternalCommand(String command, String input, List<String> parts, Redirection redir,
+            boolean backgroundJob) {
         Path executable = findExecutable(command);
         if (executable != null) {
             try {
@@ -300,33 +309,34 @@ public class Main {
                 // executed yet.
                 ProcessBuilder pb = new ProcessBuilder(parts);
 
-                if (stdoutFile != null) {
-                    if (appendStdout) {
-                        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(stdoutFile)));
+                if (redir.stdoutFile != null) {
+                    if (redir.appendStdout) {
+                        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(redir.stdoutFile)));
                     } else {
-                        pb.redirectOutput(new File(stdoutFile)); // stdout -> file
+                        pb.redirectOutput(new File(redir.stdoutFile)); // stdout -> file
                     }
                 } else {
                     pb.redirectOutput(ProcessBuilder.Redirect.INHERIT); // stdout -> terminal
                 }
 
-                if (stderrFile != null) {
-                    if (appendStderr) {
-                        pb.redirectError(ProcessBuilder.Redirect.appendTo(new File(stderrFile)));
+                if (redir.stderrFile != null) {
+                    if (redir.appendStderr) {
+                        pb.redirectError(ProcessBuilder.Redirect.appendTo(new File(redir.stderrFile)));
                     } else {
-                        pb.redirectError(new File(stderrFile)); // stderr -> file
+                        pb.redirectError(new File(redir.stderrFile)); // stderr -> file
                     }
                 } else {
                     pb.redirectError(ProcessBuilder.Redirect.INHERIT); // stderr -> terminal
                 }
 
-                Process process = pb.start(); // start the process - only after this line program runs - Send the worker to do the job.
-                
+                Process process = pb.start(); // start the process - only after this line program runs - Send the worker
+                                              // to do the job.
+
                 if (backgroundJob) {
                     int jobNumber = getNextJobNumber();
                     System.out.println("[" + jobNumber + "] " + process.pid());
                     jobs.add(new Job(jobNumber, process, input)); // Add job to list
-                }else {
+                } else {
                     process.waitFor(); // wait for the process to complete - wait until worker returns
                 }
 
@@ -348,7 +358,6 @@ public class Main {
     }
 
     private static String executeBuiltinAndCapture(List<String> parts, Path currentDirectory) {
-
         String command = parts.get(0);
 
         switch (command) {
@@ -357,25 +366,23 @@ public class Main {
             case "pwd":
                 return currentDirectory.toString() + System.lineSeparator();
             case "type":
+                String target = parts.get(1);
 
-            String target = parts.get(1);
+                if (isBuiltin(target)) {
+                    return target + " is a shell builtin" + System.lineSeparator();
+                }
 
-            if (isBuiltin(target)) {
-                return target + " is a shell builtin" + System.lineSeparator();
-            }
+                Path executable = findExecutable(target);
 
-            Path executable = findExecutable(target);
+                if (executable != null) {
+                    return target + " is " + executable + System.lineSeparator();
+                }
 
-            if (executable != null) {
-                return target + " is " + executable + System.lineSeparator();
-            }
-
-            return target + ": not found" + System.lineSeparator();
-
-        default:
-            return "";
+                return target + ": not found" + System.lineSeparator();
+            default:
+                return "";
+        }
     }
-}
 
     private static Path findExecutable(String command) {
         String pathEnv = System.getenv("PATH");
@@ -391,17 +398,21 @@ public class Main {
         return null;
     }
 
-   private static void handleJobsCommand() {
+    private static void printJob(Job job, char marker, String status, String command) {
+        System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, status, command);
+    }
+
+    private static void handleJobsCommand() {
         List<Job> completedJobs = new ArrayList<>();
         for (int i = 0; i < jobs.size(); i++) {
             Job job = jobs.get(i);
             char marker = getJobMarker(i);
-            
+
             boolean running = job.process.isAlive();
             String status = running ? "Running" : "Done";
             String command = running ? job.command : removeBackgroundSymbol(job.command);
 
-            System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, status, command);
+            printJob(job, marker, status, command);
 
             if (!running) {
                 completedJobs.add(job);
@@ -417,7 +428,7 @@ public class Main {
             if (!job.process.isAlive()) {
                 char marker = getJobMarker(i);
                 String command = removeBackgroundSymbol(job.command);
-                System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, "Done", command);
+                printJob(job, marker, "Done", command);
                 completedJobs.add(job);
             }
         }
