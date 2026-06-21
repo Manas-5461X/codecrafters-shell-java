@@ -41,6 +41,11 @@ public class Main {
                 continue;
             }
 
+            if (input.contains("|")) {
+                handlePipeline(input);
+                continue;
+            }
+
             /*
              * String[] parts = input.split(" ");
              * String command = parts[0]; // get thefirst word/token in input string , cmd
@@ -205,6 +210,44 @@ public class Main {
         }
     }
 
+    private static void handlePipeline(String input) {
+
+        String[] commands = input.split("\\|", 2);
+
+        List<String> leftCommand = parseCommand(commands[0].trim());
+        List<String> rightCommand = parseCommand(commands[1].trim());
+
+        try {
+            ProcessBuilder leftPb = new ProcessBuilder(leftCommand);
+            ProcessBuilder rightPb = new ProcessBuilder(rightCommand);
+
+            leftPb.redirectError(ProcessBuilder.Redirect.INHERIT);
+            rightPb.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+            Process leftProcess = leftPb.start();
+            Process rightProcess = rightPb.start();
+
+            Thread pipeThread = new Thread(() -> {
+                try(var in = leftProcess.getInputStream(); var out = rightProcess.getOutputStream()) {
+                    in.transferTo(out);
+                    out.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+
+            pipeThread.start();
+            rightProcess.getInputStream().transferTo(System.out);
+            pipeThread.join();
+
+            leftProcess.waitFor();
+            rightProcess.waitFor();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private static int getNextJobNumber() {
         if (jobs.isEmpty()){
             return 1;
@@ -214,6 +257,25 @@ public class Main {
             max = Math.max(max, job.jobNumber);
         }
         return max + 1;
+    }
+
+    private static char getJobMarker(int index) {
+        if (index == jobs.size() - 1) {
+            return '+';
+        }
+
+        if (index == jobs.size() - 2) {
+            return '-';
+        }
+        return ' ';
+    }
+
+    private static String removeBackgroundSymbol(String command) {
+
+        if (command.endsWith(" &")) {
+            return command.substring(0, command.length() - 2);
+        }
+        return command;
     }
 
     private static void executeExternalCommand(String command, String input, List<String> parts, String stdoutFile,
@@ -291,19 +353,11 @@ public class Main {
         List<Job> completedJobs = new ArrayList<>();
         for (int i = 0; i < jobs.size(); i++) {
             Job job = jobs.get(i);
-            char marker = ' ';
-            if (i == jobs.size() - 1) {
-                marker = '+';
-            } else if (i == jobs.size() - 2) {
-                marker = '-';
-            }
-
+            char marker = getJobMarker(i);
+            
             boolean running = job.process.isAlive();
             String status = running ? "Running" : "Done";
-            String command = job.command;
-            if (!running && command.endsWith(" &")) {
-                command = command.substring(0, command.length() - 2);
-            }
+            String command = running ? job.command : removeBackgroundSymbol(job.command);
 
             System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, status, command);
 
@@ -319,20 +373,9 @@ public class Main {
         for (int i = 0; i < jobs.size(); i++) {
             Job job = jobs.get(i);
             if (!job.process.isAlive()) {
-                char marker = ' ';
-                if (i == jobs.size() - 1) {
-                    marker = '+';
-                } else if (i == jobs.size() - 2) {
-                    marker = '-';
-                }
-
-                String command = job.command;
-                if (command.endsWith(" &")) {
-                    command = command.substring(0, command.length() - 2);
-                }
-
+                char marker = getJobMarker(i);
+                String command = removeBackgroundSymbol(job.command);
                 System.out.printf("[%d]%c  %-24s%s%n", job.jobNumber, marker, "Done", command);
-
                 completedJobs.add(job);
             }
         }
